@@ -1,0 +1,83 @@
+[tool.poetry]
+name = "homelab"
+version = "0.1.0"
+description = ""
+authors = ["Alex Persinger <apfbacc@gmail.com>"]
+readme = "README.md"
+packages = []
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pytz = "^2022.6"
+s3fs = "^0.4.2"
+pulumi = "^3.94.2"
+pulumi-rke = "^3.3.1"
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^5.0.4"
+isort = "^5.10.1"
+vulture = "^2.5"
+black = "^22.8.0"
+mypy = "^0.971"
+pytest = "^7.1.3"
+coverage = "^6.4.4"
+pdbpp = "^0.10.3"
+pydocstyle = {extras = ["toml"], version = "^6.1.1"}
+pyarrow = "^13.0.0"
+bandit = {extras = ["toml"], version = "^1.7.4"}
+detect-secrets = "^1.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html
+[tool.black]
+line-length = 120
+# same thing with unit tests - once all apps are up to date, we'll go back to global directories
+# until then, specify the directories to format in the "include" section
+exclude = ".*.sql|.*.md|.*.pyc"
+
+# https://pycqa.github.io/isort/docs/configuration/options.html
+[tool.isort]
+profile = "black"
+float_to_top = true
+skip = [
+".gitignore",
+".dockerignore",
+]
+skip_glob = [ ]
+
+# https://mypy.readthedocs.io/en/stable/config_file.html#confval-exclude
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+files = []
+exclude = [
+'venv',
+'.venv',
+'tests',
+]
+disable_error_code = ["index", "import", "assignment",] # prevent errors on DAG specific code that is allowed
+# Add this to top of DAGs: # type: ignore[arg-type, attr-defined, operator]
+# There are specific airflow operators and execution that make mypy very angry
+# Argument 1 has incompatible type "XComArg"; expected "str" [arg-type]
+
+[tool.vulture]
+min_confidence = 80
+sort_by_size = true
+exclude = [ ]
+
+[tool.pydocstyle]
+convention = "numpy"
+add-ignore = "D100,D104"
+match = "^(?!.*stream).*.py$"
+
+[tool.pytest.ini_options]
+pythonpath = [  ]
+# once we have more coverage and remove dead code, we can remove testpaths
+# for now, each application will need to specify its own test paths to not break the build
+testpaths = [ ]

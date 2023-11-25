@@ -1,0 +1,6 @@
+name: test-k8s-provision
+runtime:
+  name: python
+  options:
+    virtualenv: venv
+description: A minimal Kubernetes Python Pulumi program
