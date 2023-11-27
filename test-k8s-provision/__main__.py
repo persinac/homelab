@@ -6,6 +6,7 @@ from pulumi_kubernetes.core.v1 import Namespace, Service, Secret
 from pulumi_kubernetes.apiextensions.v1 import CustomResourceDefinition
 from pulumi_kubernetes.apiextensions import CustomResource
 from pulumi_kubernetes.yaml import ConfigFile
+from pulumi_kubernetes_cert_manager import CertManager, ReleaseArgs
 
 with open('C:\\homelab\\id_rsa', 'r') as file:
     ssh_key = file.read()
@@ -36,50 +37,61 @@ pulumi.export("kubeconfig", kubeconf)
 k8s_provider = Provider("k8s-provider", kubeconfig=kubeconf)
 
 # Set up cert-manager CRDs
-# crds = ConfigFile("cert-manager-crds",
-#                   file="https://raw.githubusercontent.com/jetstack/cert-manager/release-0.11/deploy/manifests/00-crds.yaml",
-#                   opts=pulumi.ResourceOptions(provider=k8s_provider))
+# crds = ConfigFile(
+#     name="cert-manager-crds",
+#     file="https://raw.githubusercontent.com/jetstack/cert-manager/release-0.11/deploy/manifests/00-crds.yaml",
+#     opts=pulumi.ResourceOptions(provider=k8s_provider)
+# )
 
 
 # setup cert-manager
+ns_name = 'dev-cert-manager'
 namespace = Namespace(
-    'cert-manager',
+    'dev-cert-manager-ns',
     metadata={
-        "name": "cert-manager",
+        "name": ns_name,
         "labels": {
             "certmanager.k8s.io/disable-validation": "true"
         }
     },
-    opts=pulumi.ResourceOptions(provider=k8s_provider),
+    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[cluster])
+)
+
+manager = CertManager('cert-manager',
+    install_crds=True,
+    helm_options=ReleaseArgs(
+        namespace=ns_name,
+    ),
+    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace])
 )
 
 # cert-manager clusterIssuer
-cluster_issuer = CustomResource(
-    "letsencrypt-staging",
-    api_version="cert-manager.io/v1",
-    kind="Issuer",
-    metadata={
-        "name": "letsencrypt-staging",
-        "namespace": namespace.metadata["name"]
-    },
-    spec={
-        "acme": {
-            "email": "apfbacc@gmail.com",
-            "server": "https://acme-v02.api.letsencrypt.org/directory",
-            "privateKeySecretRef": {
-                "name": "letsencrypt-staging"
-            },
-            "solvers": [{
-                "http01": {
-                    "ingress": {
-                        "class": "nginx"
-                    }
-                }
-            }]
-        }
-    },
-    opts=pulumi.ResourceOptions(provider=k8s_provider),
-)
+# cluster_issuer = CustomResource(
+#     "letsencrypt-staging",
+#     api_version="cert-manager.io/v1",
+#     kind="Issuer",
+#     metadata={
+#         "name": "letsencrypt-staging",
+#         "namespace": namespace.metadata["name"]
+#     },
+#     spec={
+#         "acme": {
+#             "email": "apfbacc@gmail.com",
+#             "server": "https://acme-v02.api.letsencrypt.org/directory",
+#             "privateKeySecretRef": {
+#                 "name": "letsencrypt-staging"
+#             },
+#             "solvers": [{
+#                 "http01": {
+#                     "ingress": {
+#                         "class": "nginx"
+#                     }
+#                 }
+#             }]
+#         }
+#     },
+#     opts=pulumi.ResourceOptions(provider=k8s_provider),
+# )
 #
 # # Create a TLS certificate
 # cert = CustomResource(
