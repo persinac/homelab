@@ -1,5 +1,3 @@
-from typing import Dict
-
 import pulumi
 import pulumi_rke as rke
 from pulumi_kubernetes import Provider
@@ -20,10 +18,6 @@ from pulumi_kubernetes.rbac.v1 import ClusterRole, ClusterRoleBinding, Role, Rol
 from pulumi_kubernetes.batch.v1 import Job
 from pulumi_kubernetes.networking.v1 import IngressClass
 from pulumi_kubernetes.admissionregistration.v1 import ValidatingWebhookConfiguration
-
-from jinja2 import Environment, FileSystemLoader
-import os
-import yaml
 
 with open('C:\\homelab\\id_rsa', 'r') as file:
     ssh_key = file.read()
