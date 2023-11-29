@@ -1,4 +1,4 @@
-name: test-k8s-provision
+name: k8s-provision
 runtime:
   name: python
   options:
