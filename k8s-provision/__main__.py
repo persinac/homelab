@@ -18,6 +18,7 @@ cluster = rke.Cluster(
     nodes=[node],
     cluster_name="test-1",
     enable_cri_dockerd=True,
+    ingress={"provider": "none"},
     kubernetes_version="v1.26.4-rancher2-1",
     ssh_agent_auth=True
 )
@@ -25,10 +26,3 @@ cluster = rke.Cluster(
 # Export kubeconfig
 kubeconf = cluster.kube_config_yaml
 pulumi.export("kubeconfig", kubeconf)
-
-# # Define stack reference (replace "myOrg" and "myProject" with your organization and project names respectively)
-# stack_ref = pulumi.StackReference("dev-k8s-stack")
-#
-# # Retrieve exported kubeconfig from the stack
-# kubeconfig = stack_ref.get_output("kubeconfig")
-# print(kubeconfig)
