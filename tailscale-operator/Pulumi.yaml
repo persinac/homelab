@@ -1,0 +1,6 @@
+name: tailscale-operator
+runtime:
+  name: python
+  options:
+    virtualenv: venv
+description: Deploy tailscale operator to k8s cluster
