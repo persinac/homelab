@@ -4,7 +4,7 @@ from pulumi_kubernetes.helm.v3 import Chart, ChartOpts, FetchOpts, LocalChartOpt
 from pulumi_kubernetes.core.v1 import Namespace, Secret
 from pulumi_kubernetes.yaml import ConfigFile
 
-# Define stack reference (replace "myOrg" and "myProject" with your organization and project names respectively)
+# Define stack reference
 stack_ref = pulumi.StackReference("persinac/k8s-provision/dev-k8s-stack")
 
 # Retrieve exported kubeconfig from the stack
@@ -38,7 +38,7 @@ cert_manager_crds = ConfigFile(
     opts=pulumi.ResourceOptions(provider=k8s_provider)
 )
 
-# Create the cattle-system namespace
+# Create the cert-manager namespace
 namespace_cert_manager_name = 'cert-manager'
 namespace_cert_manager = Namespace(
     f"{namespace_cert_manager_name}-ns",
@@ -54,6 +54,8 @@ namespace_cert_manager = Namespace(
     opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[cert_manager_crds])
 )
 
+# create the secret - I was having issues with the helm chart deploying this.
+# So, I extracted it out and made this secret a dependency of the primary deployment
 bootstrap_secret = Secret(
     "bootstrap-secret",
     metadata={
@@ -71,7 +73,7 @@ cert_manager_chart = Chart(
     "cert-manager",
     ChartOpts(
         chart="cert-manager",
-        version="1.13.2",  # Specify the version of cert-manager chart if needed
+        version="1.13.2",  # Specify the version of cert-manager chart
         fetch_opts=FetchOpts(
             repo="https://charts.jetstack.io"
         ),
@@ -80,6 +82,7 @@ cert_manager_chart = Chart(
     opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[cert_manager_crds, namespace_cattle_system])
 )
 
+# define the local tarball helm chart
 local_rancher_chart_path = "./rancher-2.7.9.tgz"
 rancher_chart = Chart(
     "rancher",
@@ -88,8 +91,7 @@ rancher_chart = Chart(
         namespace=namespace_cattle_system_name,
         values={
             "hostname": "nginx.rhino-augmented.ts.net",
-            "replicas": 1,
-            "bootstrapPassword": "password"  # Replace with your password
+            "replicas": 1
         }
     ),
     opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[cert_manager_chart, bootstrap_secret])
