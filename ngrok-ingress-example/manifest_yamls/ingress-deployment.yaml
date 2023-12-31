@@ -1,0 +1,72 @@
+# Source: kubernetes-ingress-controller/templates/ingress-class.yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    helm.sh/chart: kubernetes-ingress-controller-0.5.0
+    app.kubernetes.io/name: kubernetes-ingress-controller
+    app.kubernetes.io/instance: ingress-controller
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/part-of: kubernetes-ingress-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: ngrok
+spec:
+  controller: k8s.ngrok.com/ingress-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: game-2048
+  namespace: #ngrok-namespace#
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+  selector:
+    app: game-2048
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game-2048
+  namespace: #ngrok-namespace#
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: game-2048
+  template:
+    metadata:
+      labels:
+        app: game-2048
+    spec:
+      containers:
+        - name: backend
+          image: alexwhen/docker-2048
+          ports:
+            - name: http
+              containerPort: 80
+---
+# ngrok Ingress Controller Configuration
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: game-2048-ingress
+  namespace: #ngrok-namespace#
+spec:
+  ingressClassName: ngrok
+  rules:
+    - host: #ngrok_domain_in#
+      http:
+        paths:
+          - path: /game-2048
+            pathType: Prefix
+            backend:
+              service:
+                name: game-2048
+                port:
+                  number: 80

@@ -38,7 +38,7 @@ ngrok_auth_token = os.getenv('ngrok_auth_token')
 namespace_ngrok_ingress_controller_name = 'ngrok-ingress-controller-example'
 
 # read the templated file
-with open('example.yaml', 'r') as file:
+with open('manifest_yamls/custom-resource-definitions.yaml', 'r') as file:
     templated_yaml_content = file.read()
 
 # Inject .env values and get formatted yaml
@@ -50,8 +50,8 @@ injected_yaml_content = replace_placeholders(
     }
 )
 
-injected_yaml_file_name = 'formatted-content.yaml'
-with open(injected_yaml_file_name, 'w') as file:
+injected_crds_yaml_file_name = 'formatted_yamls/custom-resource-definitions.yaml'
+with open(injected_crds_yaml_file_name, 'w') as file:
     file.write(injected_yaml_content)
 
 
@@ -80,6 +80,16 @@ namespace_ngrok_ingress_controller = Namespace(
 
 ## https://raw.githubusercontent.com/ngrok/kubernetes-ingress-controller/main/manifest-bundle.yaml
 
+# Apply the templated YAML content as a configfile
+ngrok_game_manifest_crds = ConfigFile(
+    'ngrok-game-manifest-crds',
+    file=injected_crds_yaml_file_name,
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[namespace_ngrok_ingress_controller]
+    )
+)
+
 
 # define the helm chart
 ingress_controller_chart = Chart(
@@ -91,6 +101,7 @@ ingress_controller_chart = Chart(
         ),
         namespace=namespace_ngrok_ingress_controller_name,
         values={
+            'namespace': namespace_ngrok_ingress_controller_name,
             'credentials': {
                 'apiKey': ngrok_api_key,
                 'authtoken': ngrok_auth_token
@@ -100,20 +111,13 @@ ingress_controller_chart = Chart(
     opts=pulumi.ResourceOptions(
         provider=k8s_provider,
         depends_on=[
-            namespace_ngrok_ingress_controller
+            ngrok_game_manifest_crds
         ]
     )
 )
 
-# Apply the templated YAML content as a configfile
-ngrok_game_manifest = ConfigFile(
-    'ngrok-game-manifest',
-    file=injected_yaml_file_name,
-    opts=pulumi.ResourceOptions(
-        provider=k8s_provider,
-        depends_on=[ingress_controller_chart]
-    )
-)
+
+
 
 # output the operator
 # pulumi.export('ngrok_game_manifest', ngrok_game_manifest)
