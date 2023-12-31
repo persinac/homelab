@@ -37,7 +37,7 @@ ngrok_auth_token = os.getenv('ngrok_auth_token')
 
 namespace_ngrok_ingress_controller_name = 'ngrok-ingress-controller-example'
 
-# read the templated file
+# CRDs
 with open('manifest_yamls/custom-resource-definitions.yaml', 'r') as file:
     templated_yaml_content = file.read()
 
@@ -52,6 +52,42 @@ injected_yaml_content = replace_placeholders(
 
 injected_crds_yaml_file_name = 'formatted_yamls/custom-resource-definitions.yaml'
 with open(injected_crds_yaml_file_name, 'w') as file:
+    file.write(injected_yaml_content)
+
+
+# Cluster Roles
+with open('manifest_yamls/cluster-roles.yaml', 'r') as file:
+    templated_yaml_content = file.read()
+
+# Inject .env values and get formatted yaml
+injected_yaml_content = replace_placeholders(
+    templated_yaml_content,
+    {
+        'ngrok_domain_in': ngrok_subdomain,
+        'ngrok-namespace': namespace_ngrok_ingress_controller_name
+    }
+)
+
+injected_cr_yaml_file_name = 'formatted_yamls/cluster-roles.yaml'
+with open(injected_cr_yaml_file_name, 'w') as file:
+    file.write(injected_yaml_content)
+
+
+# Cluster Role Bindings
+with open('manifest_yamls/cluster-role-bindings.yaml', 'r') as file:
+    templated_yaml_content = file.read()
+
+# Inject .env values and get formatted yaml
+injected_yaml_content = replace_placeholders(
+    templated_yaml_content,
+    {
+        'ngrok_domain_in': ngrok_subdomain,
+        'ngrok-namespace': namespace_ngrok_ingress_controller_name
+    }
+)
+
+injected_crbs_yaml_file_name = 'formatted_yamls/cluster-role-bindings.yaml'
+with open(injected_crbs_yaml_file_name, 'w') as file:
     file.write(injected_yaml_content)
 
 
@@ -90,6 +126,26 @@ ngrok_game_manifest_crds = ConfigFile(
     )
 )
 
+# Apply the templated YAML content as a configfile
+ngrok_game_manifest_cr = ConfigFile(
+    'ngrok-game-manifest-cr',
+    file=injected_cr_yaml_file_name,
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[ngrok_game_manifest_crds]
+    )
+)
+
+# Apply the templated YAML content as a configfile
+ngrok_game_manifest_crbs = ConfigFile(
+    'ngrok-game-manifest-crbs',
+    file=injected_crbs_yaml_file_name,
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[ngrok_game_manifest_cr]
+    )
+)
+
 
 # define the helm chart
 ingress_controller_chart = Chart(
@@ -111,7 +167,9 @@ ingress_controller_chart = Chart(
     opts=pulumi.ResourceOptions(
         provider=k8s_provider,
         depends_on=[
-            ngrok_game_manifest_crds
+            ngrok_game_manifest_crds,
+            ngrok_game_manifest_cr,
+            ngrok_game_manifest_crbs
         ]
     )
 )

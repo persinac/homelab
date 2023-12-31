@@ -4,14 +4,14 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     pulumi.com/patchForce: "true"
-  name: ngrok-ingress-controller-manager-rolebinding
+  name: ngrok-ingress-controller-httpsedge-editor-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ngrok-ingress-controller-manager-role
+  name: httpsedge-editor-role
 subjects:
 - kind: ServiceAccount
-  name: ingress-controller-kubernetes-ingress-controller
+  name: ngrok-ingress-controller
   namespace: #ngrok-namespace#
 ---
 # Source: kubernetes-ingress-controller/templates/controller-rbac.yaml
@@ -20,12 +20,76 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     pulumi.com/patchForce: "true"
-  name: ngrok-ingress-controller-proxy-rolebinding
+  name: ngrok-ingress-controller-httpsedge-viewer-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ngrok-ingress-controller-proxy-role
+  name: httpsedge-viewer-role
 subjects:
 - kind: ServiceAccount
-  name: ingress-controller-kubernetes-ingress-controller
+  name: ngrok-ingress-controller
+  namespace: #ngrok-namespace#
+---
+# Source: kubernetes-ingress-controller/templates/controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  name: ngrok-ingress-controller-ippolicy-editor-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ippolicy-editor-role
+subjects:
+- kind: ServiceAccount
+  name: ngrok-ingress-controller
+  namespace: #ngrok-namespace#
+---
+# Source: kubernetes-ingress-controller/templates/controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  name: ngrok-ingress-controller-ippolicy-viewer-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ippolicy-viewer-role
+subjects:
+- kind: ServiceAccount
+  name: ngrok-ingress-controller
+  namespace: #ngrok-namespace#
+---
+# Source: kubernetes-ingress-controller/templates/controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  name: ngrok-ingress-controller-tcpedge-editor-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tcpedge-editor-role
+subjects:
+- kind: ServiceAccount
+  name: ngrok-ingress-controller
+  namespace: #ngrok-namespace#
+---
+# Source: kubernetes-ingress-controller/templates/controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  name: ngrok-ingress-controller-tcpedge-viewer-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tcpedge-viewer-role
+subjects:
+- kind: ServiceAccount
+  name: ngrok-ingress-controller
   namespace: #ngrok-namespace#
