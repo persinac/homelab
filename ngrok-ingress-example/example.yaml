@@ -1101,6 +1101,22 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges
+  verbs:
+  - get
+  - list
+  - watch
 ---
 # Source: kubernetes-ingress-controller/templates/rbac/tcpedge_editor_role.yaml
 # permissions for end users to edit tcpedges.
@@ -1325,6 +1341,22 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges
+  verbs:
+  - get
+  - list
   - watch
 ---
 # Source: kubernetes-ingress-controller/templates/controller-rbac.yaml
