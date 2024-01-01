@@ -91,6 +91,24 @@ with open(injected_crbs_yaml_file_name, 'w') as file:
     file.write(injected_yaml_content)
 
 
+# Game deployment
+with open('manifest_yamls/ingress-game-deployment.yaml', 'r') as file:
+    templated_yaml_content = file.read()
+
+# Inject .env values and get formatted yaml
+injected_yaml_content = replace_placeholders(
+    templated_yaml_content,
+    {
+        'ngrok_domain_in': ngrok_subdomain,
+        'ngrok-namespace': namespace_ngrok_ingress_controller_name
+    }
+)
+
+injected_game_deploy_yaml_file_name = 'formatted_yamls/ingress-game-deployment.yaml'
+with open(injected_game_deploy_yaml_file_name, 'w') as file:
+    file.write(injected_yaml_content)
+
+
 # Define k8s stack reference
 stack_ref = pulumi.StackReference("persinac/k8s-provision/dev-k8s-stack")
 kubeconfig = stack_ref.get_output("kubeconfig")
@@ -174,7 +192,15 @@ ingress_controller_chart = Chart(
     )
 )
 
-
+# Apply the templated YAML content as a configfile
+ngrok_game_manifest_actual_game = ConfigFile(
+    'ngrok-game-manifest-actual-game',
+    file=injected_game_deploy_yaml_file_name,
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[ingress_controller_chart]
+    )
+)
 
 
 # output the operator

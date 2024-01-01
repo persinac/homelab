@@ -31,7 +31,13 @@ rules:
   resources:
   - httpsedges/status
   verbs:
+  - create
+  - delete
   - get
+  - list
+  - patch
+  - update
+  - watch
 ---
 # Source: kubernetes-ingress-controller/templates/rbac/httpsedge_viewer_role.yaml
 # permissions for end users to view httpsedges.
@@ -97,7 +103,13 @@ rules:
   resources:
   - ippolicies/status
   verbs:
+  - create
+  - delete
   - get
+  - list
+  - patch
+  - update
+  - watch
 ---
 # Source: kubernetes-ingress-controller/templates/rbac/ippolicy_viewer_role.yaml
 # permissions for end users to view ippolicies.
@@ -163,7 +175,13 @@ rules:
   resources:
   - tcpedges/status
   verbs:
+  - create
+  - delete
   - get
+  - list
+  - patch
+  - update
+  - watch
 ---
 # Source: kubernetes-ingress-controller/templates/rbac/tcpedge_viewer_role.yaml
 # permissions for end users to view tcpedges.
