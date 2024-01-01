@@ -1,0 +1,81 @@
+# Source: kubernetes-ingress-controller/templates/controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: kubernetes-ingress-controller-0.5.0
+    app.kubernetes.io/name: kubernetes-ingress-controller
+    app.kubernetes.io/instance: ingress-controller
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/part-of: kubernetes-ingress-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: ingress-controller-kubernetes-ingress-controller-manager
+  namespace: #ngrok-namespace#
+  annotations:
+    checksum/agent-config: 1012a0f3f4132751a558b1db2df58aab89fc9cf8a7f75a51ab84ffecf7ec9d71
+    checksum/controller-role: e82dcab3ad4d03739f251c7b07a2af02c401d664726314ec52eefc966f8d7c60
+    checksum/rbac: ab5761a6b6e49df659299bec762a096c25634370afc20485d4b5f4befcda2504
+    pulumi.com/patchForce: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubernetes-ingress-controller
+      app.kubernetes.io/instance: ingress-controller
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+        prometheus.io/path: /metrics
+        prometheus.io/port: '8080'
+        prometheus.io/scrape: 'true'
+      labels:
+        app.kubernetes.io/name: kubernetes-ingress-controller
+        app.kubernetes.io/instance: ingress-controller
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: ingress-controller-kubernetes-ingress-controller
+      containers:
+      - name: ngrok-ingress-controller
+        image: docker.io/ngrok/kubernetes-ingress-controller:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /manager
+        args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=:8080
+        - --election-id=ingress-controller-kubernetes-ingress-controller-leader
+        securityContext:
+          allowPrivilegeEscalation: false
+        env:
+        - name: NGROK_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: API_KEY
+              name: ngrok-ingress-controller-credentials
+        - name: NGROK_AUTHTOKEN
+          valueFrom:
+            secretKeyRef:
+              key: AUTHTOKEN
+              name: ngrok-ingress-controller-credentials
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits: {}
+          requests: {}

@@ -1,0 +1,580 @@
+# Source: kubernetes-ingress-controller/templates/controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ngrok-ingress-controller-proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+# Source: kubernetes-ingress-controller/templates/rbac/domain_editor_role.yaml
+# permissions for end users to edit domains.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    helm.sh/chart: kubernetes-ingress-controller-0.5.0
+    app.kubernetes.io/name: kubernetes-ingress-controller
+    app.kubernetes.io/instance: ingress-controller
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/part-of: kubernetes-ingress-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: rbac
+  name: ingress-controller-kubernetes-ingress-controller-domain-editor-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - domains
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - domains/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/domain_viewer_role.yaml
+# permissions for end users to view domains.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    helm.sh/chart: kubernetes-ingress-controller-0.5.0
+    app.kubernetes.io/name: kubernetes-ingress-controller
+    app.kubernetes.io/instance: ingress-controller
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/part-of: kubernetes-ingress-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: rbac
+  name: ingress-controller-kubernetes-ingress-controller-domain-viewer-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - domains
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - domains/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/httpsedge_editor_role.yaml
+# permissions for end users to edit httpsedges.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: httpsedge-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: httpsedge-editor-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/httpsedge_viewer_role.yaml
+# permissions for end users to view httpsedges.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: httpsedge-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: httpsedge-viewer-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/ippolicy_editor_role.yaml
+# permissions for end users to edit ippolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: ippolicy-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: ippolicy-editor-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/ippolicy_viewer_role.yaml
+# permissions for end users to view ippolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: ippolicy-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: ippolicy-viewer-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  creationTimestamp: null
+  name: ngrok-ingress-controller-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - domains
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - domains/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - domains/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tunnels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tunnels/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tunnels/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Source: kubernetes-ingress-controller/templates/rbac/tcpedge_editor_role.yaml
+# permissions for end users to edit tcpedges.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: tcpedge-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: tcpedge-editor-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/tcpedge_viewer_role.yaml
+# permissions for end users to view tcpedges.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: tcpedge-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: tcpedge-viewer-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/tunnel_editor_role.yaml
+# permissions for end users to edit tunnels.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    helm.sh/chart: kubernetes-ingress-controller-0.5.0
+    app.kubernetes.io/name: kubernetes-ingress-controller
+    app.kubernetes.io/instance: ingress-controller
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/part-of: kubernetes-ingress-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: rbac
+  name: ingress-controller-kubernetes-ingress-controller-tunnel-editor-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tunnels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tunnels/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/tunnel_viewer_role.yaml
+# permissions for end users to view tunnels.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    helm.sh/chart: kubernetes-ingress-controller-0.5.0
+    app.kubernetes.io/name: kubernetes-ingress-controller
+    app.kubernetes.io/instance: ingress-controller
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/part-of: kubernetes-ingress-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: rbac
+  name: ingress-controller-kubernetes-ingress-controller-tunnel-viewer-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tunnels
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tunnels/status
+  verbs:
+  - get

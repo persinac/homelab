@@ -1,0 +1,16 @@
+# Source: kubernetes-ingress-controller/templates/controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  name: ngrok-ingress-controller-leader-election-rolebinding
+  namespace: #ngrok-namespace#
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ngrok-ingress-controller-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: ingress-controller-kubernetes-ingress-controller
+  namespace: #ngrok-namespace#

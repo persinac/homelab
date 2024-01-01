@@ -1,0 +1,215 @@
+# Source: kubernetes-ingress-controller/templates/rbac/httpsedge_editor_role.yaml
+# permissions for end users to edit httpsedges.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: httpsedge-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: httpsedge-editor-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+# Source: kubernetes-ingress-controller/templates/rbac/httpsedge_viewer_role.yaml
+# permissions for end users to view httpsedges.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: httpsedge-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: httpsedge-viewer-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - httpsedges/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/ippolicy_editor_role.yaml
+# permissions for end users to edit ippolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: ippolicy-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: ippolicy-editor-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+# Source: kubernetes-ingress-controller/templates/rbac/ippolicy_viewer_role.yaml
+# permissions for end users to view ippolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: ippolicy-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: ippolicy-viewer-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - ippolicies/status
+  verbs:
+  - get
+---
+# Source: kubernetes-ingress-controller/templates/rbac/tcpedge_editor_role.yaml
+# permissions for end users to edit tcpedges.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: tcpedge-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: tcpedge-editor-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+# Source: kubernetes-ingress-controller/templates/rbac/tcpedge_viewer_role.yaml
+# permissions for end users to view tcpedges.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    pulumi.com/patchForce: "true"
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: tcpedge-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: ngrok-ingress-controller
+    app.kubernetes.io/part-of: ngrok-ingress-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: tcpedge-viewer-role
+rules:
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.k8s.ngrok.com
+  resources:
+  - tcpedges/status
+  verbs:
+  - get
