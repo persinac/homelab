@@ -4,6 +4,9 @@ This directory hosts a dockerfile to build an image based on the official pgload
 
 # Pre-reqs
 
+1. MySQL instance _must_ be 5.7
+2. Have your remote instance certificates available
+
 Your MySQL instance _must_ be 5.7. If you're running anything > 5.X, you'll need to migrate your MySQL
 database to an instance that is running 5.7. This is because of this:
 
@@ -17,6 +20,10 @@ So, if you're in this camp, either find another app or run a migration from MySQ
 
 All I did was install MySQL 5.7 locally, run the MySQL Workbench Migration wizard, and migrated everything
 to my local instance.
+
+## Certificates
+
+I opted to pay for a managed DB instance, so retrieving ca-certificates.crt was as easy as going to the dashboard and downloading them. 
 
 # Usage
 
