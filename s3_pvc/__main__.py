@@ -1,12 +1,19 @@
 """A Python Pulumi program"""
 
 import os
+import sys
 import json
 from dotenv import load_dotenv
 import pulumi
 from pulumi import Output
 import pulumi_aws as aws
 import pulumi_kubernetes as kubernetes
+from pulumi_kubernetes.yaml import ConfigFile
+
+
+sys.path.insert(0, 'C:\PyCharmProjects\homelab')
+
+from utilities._yaml import replace_placeholders
 
 """
 CSI Order of ops:
@@ -126,7 +133,41 @@ helm_release = kubernetes.helm.v3.Release(
     opts=pulumi.ResourceOptions(provider=k8s_provider)
 )
 
+# Mountpoint deployment
+with open('manifest_yamls/example.yaml', 'r') as file:
+    templated_yaml_content = file.read()
+
+# Inject .env values and get formatted yaml
+injected_yaml_content = replace_placeholders(
+    templated_yaml_content,
+    {
+        'xqetrwert': bucket_name
+    }
+)
+
+injected_game_deploy_yaml_file_name = 'formatted_yamls/test-this.yaml'
+with open(injected_game_deploy_yaml_file_name, 'w') as file:
+    file.write(injected_yaml_content)
+
+
+# Apply the templated YAML content as a configfile
+mountpoint_deployment_s3 = ConfigFile(
+    'mountpoint-deployment-s3',
+    file=injected_game_deploy_yaml_file_name,
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[helm_release]
+    )
+)
+
 # Export the name of the Helm Release
 pulumi.export("release_name", helm_release.name)
 # Export the name of the secret
 pulumi.export('secret_name', aws_secret.metadata.name)
+
+# Load an example file
+aws.s3.BucketObjectv2(
+    'dag_s3_mountpoint_example.py',
+    bucket=s3_bucket.id,
+    source=pulumi.asset.FileAsset("test_dag/example_dag.py"),
+)
