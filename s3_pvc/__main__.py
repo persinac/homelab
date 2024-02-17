@@ -1,18 +1,11 @@
 """A Python Pulumi program"""
 
 import os
-import sys
 import json
 from dotenv import load_dotenv
 import pulumi
 import pulumi_aws as aws
 import pulumi_kubernetes as kubernetes
-from pulumi_kubernetes.yaml import ConfigFile
-
-
-sys.path.insert(0, 'C:\PyCharmProjects\homelab')
-
-from utilities._yaml import replace_placeholders
 
 """
 CSI Order of ops:
@@ -29,6 +22,7 @@ CSI Order of ops:
 
 # load env vars
 load_dotenv()
+kube_conf_path = os.getenv('kube_conf_path')
 aws_account_id = os.getenv('aws_account_id')
 bucket_name_prefix = os.getenv('bucket_name')
 aws_region = os.getenv('aws_region')
@@ -82,14 +76,14 @@ pulumi.export('access_key_id', iam_access_key.id)
 pulumi.export('secret_access_key', pulumi.Output.secret(iam_access_key.secret))
 pulumi.export('bucket_arn2', s3_bucket)
 
-# Define k8s stack reference
-stack_ref = pulumi.StackReference("persinac/k8s-provision/dev")
-kubeconfig = stack_ref.get_output("kubeconfig")
+# Read the kubeconfig file
+with open(kube_conf_path, 'r') as kubeconfig_file:
+    kubeconfig = kubeconfig_file.read()
 
 # set up provider
 k8s_provider = kubernetes.Provider("k8s-provider", kubeconfig=kubeconfig)
 
-csi_namespace_name = "apache-airflow"
+csi_namespace_name = "kube-system"
 
 # Create a Kubernetes Secret
 aws_secret = kubernetes.core.v1.Secret(
@@ -126,46 +120,4 @@ aws_mp_s3_csi_driver_release = kubernetes.helm.v3.Release(
         provider=k8s_provider,
         depends_on=[aws_secret]
     )
-)
-
-namespace_for_mp_pv_pvc = "apache-airflow"
-
-# Mountpoint deployment
-with open('manifest_yamls/non-root-s3-mp-pvc.yaml', 'r') as file:
-    templated_yaml_content = file.read()
-
-# Inject .env values and get formatted yaml
-injected_yaml_content = replace_placeholders(
-    templated_yaml_content,
-    {
-        'bucket_name': bucket_name,
-        'namespace': namespace_for_mp_pv_pvc
-    }
-)
-
-injected_yaml_file_name = 'formatted_yamls/non-root-s3-mp-pvc.yaml'
-with open(injected_yaml_file_name, 'w') as file:
-    file.write(injected_yaml_content)
-
-
-# Apply the templated YAML content as a configfile
-mountpoint_deployment_s3 = ConfigFile(
-    'mountpoint-deployment-s3',
-    file=injected_yaml_file_name,
-    opts=pulumi.ResourceOptions(
-        provider=k8s_provider,
-        depends_on=[aws_mp_s3_csi_driver_release]
-    )
-)
-
-# Export the name of the Helm Release
-pulumi.export("release_name", aws_mp_s3_csi_driver_release.name)
-# Export the name of the secret
-pulumi.export('secret_name', aws_secret.metadata.name)
-
-# Load an example file to the s3 bucket
-aws.s3.BucketObjectv2(
-    'dag_s3_mountpoint_example.py',
-    bucket=s3_bucket.id,
-    source=pulumi.asset.FileAsset("test_dag/example_dag.py"),
 )

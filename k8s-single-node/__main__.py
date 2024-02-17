@@ -1,10 +1,40 @@
 import pulumi
+import pulumi_rke as rke
 import pulumi_docker as docker
 import pulumi_command as command
 # pulumi state delete --target-dependents
 with open('C:\\homelab\\alex-ser-1', 'r') as file:
     node_1_ssh_key = file.read()
 
+# Define nodes for the cluster
+node = rke.ClusterNodeArgs(
+    address="100.69.154.17",
+    user="alex",
+    ssh_key=node_1_ssh_key,
+    roles=["controlplane", "etcd", "worker"],
+    labels={
+        "node": "alex-ser-1"
+    }
+)
+
+# Define the RKE cluster configuration
+cluster = rke.Cluster(
+    "homelab-cluster",
+    nodes=[node],
+    cluster_name="homelab-single-node",
+    enable_cri_dockerd=True,
+    ingress={
+        "dns_policy": "Default",
+        "network_mode": "hostNetwork",
+        "provider": "nginx"
+    },
+    kubernetes_version="v1.26.4-rancher2-1",
+    ssh_agent_auth=True
+)
+
+# Export kubeconfig
+kubeconf = cluster.kube_config_yaml
+pulumi.export("kubeconfig", kubeconf)
 
 # Define remote server connection details
 connection = command.remote.ConnectionArgs(
@@ -28,11 +58,6 @@ rancher_container_command = command.remote.Command(
         ]
     )
 )
-
-"""
-Once rancher UI is deployed, I manually provision k8s cluster and create the appropriate nodes.
-This was due to rke limitations for v1 and provisioning networking for talking to multi nodes.
-"""
 
 # Export the command result, which includes stdout and stderr
 pulumi.export("command_result", rancher_container_command)
