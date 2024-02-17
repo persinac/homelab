@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-airflow-web
+  namespace: apache-airflow
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: lab.augmented.ninja
+      http:
+        paths:
+          - path: /airflow
+            pathType: Prefix
+            backend:
+              service:
+                name: airflow-web
+                port:
+                  number: 8080

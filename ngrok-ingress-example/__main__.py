@@ -1,63 +1,23 @@
-from typing import Dict
 from dotenv import load_dotenv
 import os
 import pulumi
-from pulumi_kubernetes import Provider, meta
+from pulumi_kubernetes import Provider
 from pulumi_kubernetes.helm.v3 import Chart, ChartOpts, FetchOpts
 from pulumi_kubernetes.core.v1 import Namespace
-from pulumi_kubernetes.yaml import ConfigFile
-
-
-def replace_placeholders(yaml_content: str, replacements: Dict) -> str:
-    """Replace templated placeholders with the given replacement values.
-
-    This is primarily used for secret replacement and injection. Can be extended
-    based on your tailscale operator requirements.
-
-    Parameters
-    ----------
-    yaml_content: str
-    replacements: Dict
-
-    Returns
-    -------
-    str
-    """
-    for key, value in replacements.items():
-        yaml_content = yaml_content.replace(f'#{key}#', value)
-    return yaml_content
 
 
 # load env vars
 load_dotenv()
-ngrok_subdomain = os.getenv('ngrok_domain')
+kube_conf_path = os.getenv('kube_conf_path')
 ngrok_api_key = os.getenv('ngrok_api_key')
 ngrok_auth_token = os.getenv('ngrok_auth_token')
 
 
-namespace_ngrok_ingress_controller_name = 'ngrok-ingress-controller-example'
+namespace_ngrok_ingress_controller_name = 'ngrok'
 
-# Game deployment
-with open('manifest_yamls/ingress-game-deployment.yaml', 'r') as file:
-    templated_yaml_content = file.read()
-
-# Inject .env values and get formatted yaml
-injected_yaml_content = replace_placeholders(
-    templated_yaml_content,
-    {
-        'ngrok_domain_in': ngrok_subdomain,
-        'ngrok-namespace': namespace_ngrok_ingress_controller_name
-    }
-)
-
-injected_game_deploy_yaml_file_name = 'formatted_yamls/test-this.yaml'
-with open(injected_game_deploy_yaml_file_name, 'w') as file:
-    file.write(injected_yaml_content)
-
-# Define k8s stack reference
-stack_ref = pulumi.StackReference("persinac/k8s-provision/dev")
-kubeconfig = stack_ref.get_output("kubeconfig")
-print(kubeconfig)
+# Read the kubeconfig file
+with open(kube_conf_path, 'r') as kubeconfig_file:
+    kubeconfig = kubeconfig_file.read()
 
 # set up provider
 k8s_provider = Provider("k8s-provider", kubeconfig=kubeconfig)
@@ -85,8 +45,12 @@ ingress_controller_chart = Chart(
     "kubernetes-ingress-controller",
     ChartOpts(
         chart="kubernetes-ingress-controller",
+        version="0.12.1",
         fetch_opts=FetchOpts(
-            repo="https://ngrok.github.io/kubernetes-ingress-controller"
+            repo="https://ngrok.github.io/kubernetes-ingress-controller",
+            destination="downloaded-charts",
+            untar=True,
+            untar_dir="untarred"
         ),
         namespace=namespace_ngrok_ingress_controller_name,
         values={
@@ -97,6 +61,7 @@ ingress_controller_chart = Chart(
             }
         }
     ),
+
     opts=pulumi.ResourceOptions(
         provider=k8s_provider,
         depends_on=[
@@ -105,17 +70,4 @@ ingress_controller_chart = Chart(
     )
 )
 
-# Apply the templated YAML content as a configfile
-ngrok_game_manifest_actual_game = ConfigFile(
-    'ngrok-game-manifest-actual-game',
-    file=injected_game_deploy_yaml_file_name,
-    opts=pulumi.ResourceOptions(
-        provider=k8s_provider,
-        depends_on=[ingress_controller_chart]
-    )
-)
-
-
-# output the operator
-# pulumi.export('ngrok_game_manifest', ngrok_game_manifest)
-# pulumi.export("ingress_controller_chart", ingress_controller_chart._name)
+pulumi.export('chart_version', ingress_controller_chart.urn)

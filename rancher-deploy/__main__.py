@@ -4,7 +4,7 @@ from pulumi_kubernetes.helm.v3 import Chart, ChartOpts, FetchOpts, LocalChartOpt
 from pulumi_kubernetes.core.v1 import Namespace, Secret
 from pulumi_kubernetes.yaml import ConfigFile
 
-# Define stack reference
+# Define stack referenceF
 stack_ref = pulumi.StackReference("persinac/k8s-provision/dev-k8s-stack")
 
 # Retrieve exported kubeconfig from the stack

@@ -33,19 +33,21 @@ spec:
             - name: http
               containerPort: 80
 ---
-# ngrok Ingress Controller Configuration
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: game-2048-ingress
   namespace: #ngrok-namespace#
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: ngrok
   rules:
     - host: #ngrok_domain_in#
       http:
         paths:
-          - path: /
+          - path: /abc/(.*)
             pathType: Prefix
             backend:
               service:
