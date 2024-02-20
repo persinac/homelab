@@ -1,5 +1,5 @@
 from typing import Dict
-
+import pulumi
 
 def replace_placeholders(yaml_content: str, replacements: Dict) -> str:
     """Replace templated placeholders with the given replacement values.
@@ -17,5 +17,11 @@ def replace_placeholders(yaml_content: str, replacements: Dict) -> str:
     str
     """
     for key, value in replacements.items():
+        # if isinstance(value, pulumi.Output):
+        #     yaml_content = yaml_content.replace(
+        #         f'#{key}#',
+        #         value.apply(lambda token: print(token))
+        #     )
+        # else:
         yaml_content = yaml_content.replace(f'#{key}#', value)
     return yaml_content
