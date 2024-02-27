@@ -1,5 +1,6 @@
 from typing import Dict
 
+
 def replace_placeholders(yaml_content: str, replacements: Dict) -> str:
     """Replace templated placeholders with the given replacement values.
 
