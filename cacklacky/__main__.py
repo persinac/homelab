@@ -95,9 +95,9 @@ tunnel_config = TunnelConfig(
     tunnel_id=tunnel.id,
     config=TunnelConfigConfigArgs(
         ingress_rules=[
-            host_specific_ingress_rule,
-            base_ckc_ingress_rule,
             api_badge_ingress_rule,
+            prefix_host_specific_ingress_rule,
+            base_ckc_ingress_rule,
             # prefix_host_specific_ingress_rule,
             # Bad Configuration: The last ingress rule must match all URLs (i.e. it should not have a hostname or path filter)
             catch_all_ingress_rule
