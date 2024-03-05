@@ -30,6 +30,9 @@ cloudflare_account_id = os.getenv('cloudflare_account_id')
 cloudflare_zone_id = os.getenv('cloudflare_zone_id')
 hostname = os.getenv('hostname')
 
+# Set the namespace here so we can reference
+namespace_ckc = "cackalacky"
+
 """
 Cloudflare Specific setup
  - The following will configure objects on the cloudflare side
@@ -74,6 +77,17 @@ prefix_host_specific_ingress_rule = TunnelConfigConfigIngressRuleArgs(
     service="http://game-2048-service.test-2048-game:80"
 )
 
+base_ckc_ingress_rule = TunnelConfigConfigIngressRuleArgs(
+    hostname=f"{hostname}",
+    service=f"http://cackalacky-fe-service.{namespace_ckc}:80"
+)
+
+api_badge_ingress_rule = TunnelConfigConfigIngressRuleArgs(
+    hostname=f"{hostname}",
+    path="/api",
+    service=f"http://cackalacky-badge-api-service.{namespace_ckc}:80"
+)
+
 # Create the TunnelConfig resource using the ingress rule
 tunnel_config = TunnelConfig(
     "tunnel-config",
@@ -82,7 +96,9 @@ tunnel_config = TunnelConfig(
     config=TunnelConfigConfigArgs(
         ingress_rules=[
             host_specific_ingress_rule,
-            prefix_host_specific_ingress_rule,
+            base_ckc_ingress_rule,
+            api_badge_ingress_rule,
+            # prefix_host_specific_ingress_rule,
             # Bad Configuration: The last ingress rule must match all URLs (i.e. it should not have a hostname or path filter)
             catch_all_ingress_rule
         ]
@@ -111,7 +127,7 @@ root_dns_record = Record(
 www_dns_record = Record(
     "www-cackalacky-cname",
     zone_id=cloudflare_zone_id,
-    name="2048",  # This is relative to the domain name associated with the zone. e.g. 'www.example.com'
+    name="www",  # This is relative to the domain name associated with the zone. e.g. 'www.example.com'
     type="CNAME",
     value=tunnel.cname,
     proxied=True,
