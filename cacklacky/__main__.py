@@ -63,13 +63,15 @@ tunnel = Tunnel(
     )
 )
 
-catch_all_ingress_rule = TunnelConfigConfigIngressRuleArgs(
-    service="http://localhost:7891"
+api_badge_ingress_rule = TunnelConfigConfigIngressRuleArgs(
+    hostname=f"{hostname}",
+    path="/api",
+    service=f"http://cackalacky-badge-api-service.{namespace_ckc}:80"
 )
 
-host_specific_ingress_rule = TunnelConfigConfigIngressRuleArgs(
-    hostname=hostname,
-    service="http://game-2048-service.test-2048-game:80"
+discord_bot_ingress_rule = TunnelConfigConfigIngressRuleArgs(
+    hostname=f"ckc-bot.{hostname}",
+    service=f"http://cackalacky-discord-api.{namespace_ckc}:80"
 )
 
 prefix_host_specific_ingress_rule = TunnelConfigConfigIngressRuleArgs(
@@ -79,13 +81,11 @@ prefix_host_specific_ingress_rule = TunnelConfigConfigIngressRuleArgs(
 
 base_ckc_ingress_rule = TunnelConfigConfigIngressRuleArgs(
     hostname=f"{hostname}",
-    service=f"http://cackalacky-fe-service.{namespace_ckc}:80"
+    service=f"http://cackalacky-ui-service.{namespace_ckc}:80"
 )
 
-api_badge_ingress_rule = TunnelConfigConfigIngressRuleArgs(
-    hostname=f"{hostname}",
-    path="/api",
-    service=f"http://cackalacky-badge-api-service.{namespace_ckc}:80"
+catch_all_ingress_rule = TunnelConfigConfigIngressRuleArgs(
+    service="http://localhost:7891"
 )
 
 # Create the TunnelConfig resource using the ingress rule
@@ -96,6 +96,7 @@ tunnel_config = TunnelConfig(
     config=TunnelConfigConfigArgs(
         ingress_rules=[
             api_badge_ingress_rule,
+            discord_bot_ingress_rule,
             prefix_host_specific_ingress_rule,
             base_ckc_ingress_rule,
             # prefix_host_specific_ingress_rule,
@@ -128,6 +129,26 @@ www_dns_record = Record(
     "www-cackalacky-cname",
     zone_id=cloudflare_zone_id,
     name="www",  # This is relative to the domain name associated with the zone. e.g. 'www.example.com'
+    type="CNAME",
+    value=tunnel.cname,
+    proxied=True,
+    opts=pulumi.ResourceOptions(provider=cloudflare_provider, depends_on=[tunnel])
+)
+
+game2048_dns_record = Record(
+    "2048-cackalacky-cname",
+    zone_id=cloudflare_zone_id,
+    name="2048",  # This is relative to the domain name associated with the zone. e.g. 'www.example.com'
+    type="CNAME",
+    value=tunnel.cname,
+    proxied=True,
+    opts=pulumi.ResourceOptions(provider=cloudflare_provider, depends_on=[tunnel])
+)
+
+discord_bot_dns_record = Record(
+    "discord-bot-cackalacky-cname",
+    zone_id=cloudflare_zone_id,
+    name="ckc-bot",  # This is relative to the domain name associated with the zone. e.g. 'www.example.com'
     type="CNAME",
     value=tunnel.cname,
     proxied=True,
