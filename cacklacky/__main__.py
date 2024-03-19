@@ -10,8 +10,16 @@ from pulumi_kubernetes.core.v1 import (
     PodSpecArgs,
     ContainerArgs,
     ProbeArgs,
-    HTTPGetActionArgs
+Service,
+ServiceSpecArgs,
+ServicePortArgs,
+    HTTPGetActionArgs,
+    PersistentVolumeClaim,
+    PersistentVolumeClaimSpecArgs,
+    VolumeResourceRequirementsArgs
 )
+from pulumi_kubernetes.core.v1.outputs import VolumeMount, EnvVar, Volume, PersistentVolumeClaimVolumeSource, \
+    ContainerPort
 from pulumi_kubernetes.meta.v1 import ObjectMetaArgs, LabelSelectorArgs
 from pulumi_cloudflare import (
     Provider,
@@ -21,6 +29,7 @@ from pulumi_cloudflare import (
     TunnelConfigConfigArgs,
     TunnelConfigConfigIngressRuleArgs,
 )
+from pulumi_kubernetes.meta.v1.outputs import LabelSelector
 
 # load env vars
 load_dotenv()
@@ -142,7 +151,7 @@ game2048_dns_record = Record(
     type="CNAME",
     value=tunnel.cname,
     proxied=True,
-    opts=pulumi.ResourceOptions(provider=cloudflare_provider, depends_on=[tunnel])
+    opts=pulumi.ResourceOptions(provider=cloudflare_provider, depends_on=[tunnel], ignore_changes=["*"])
 )
 
 discord_bot_dns_record = Record(
@@ -152,7 +161,11 @@ discord_bot_dns_record = Record(
     type="CNAME",
     value=tunnel.cname,
     proxied=True,
-    opts=pulumi.ResourceOptions(provider=cloudflare_provider, depends_on=[tunnel])
+    opts=pulumi.ResourceOptions(
+        provider=cloudflare_provider,
+        depends_on=[tunnel],
+        ignore_changes=["*"]
+    )
 )
 
 """
@@ -163,6 +176,7 @@ K8S Specific Setup
 with open(kube_conf_path, 'r') as kubeconfig_file:
     kubeconfig = kubeconfig_file.read()
 
+print(kubeconfig)
 # set up provider
 k8s_provider = KUBE_Provider("k8s-provider", kubeconfig=kubeconfig)
 
@@ -220,3 +234,106 @@ cloudflared_deployment = Deployment(
     ),
     opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace_obj_ckc])
 )
+
+""" Longhorn & Redis """
+
+# Create a PersistentVolumeClaim (PVC)
+redis_pvc = PersistentVolumeClaim(
+    "redis_pvc",
+    metadata=ObjectMetaArgs(
+        name="redis-pvc",
+        namespace=namespace_ckc,
+    ),
+    spec=PersistentVolumeClaimSpecArgs(
+        access_modes=["ReadWriteOnce"],
+        storage_class_name="longhorn",
+        resources=VolumeResourceRequirementsArgs(
+            requests={
+                "storage": "5Gi"
+            }
+        ),
+    ),
+    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace_obj_ckc])
+)
+
+metadata = ObjectMetaArgs(
+    name="redis-server",
+    namespace=namespace_ckc
+)
+
+# The container spec for the Redis server
+container = {
+    "name": "redis-server",
+    "image": "redis",
+    "args": ["--appendonly", "yes"],
+    "ports": [ContainerPort(name="redis-server", container_port=6379)],
+    "volume_mounts": [VolumeMount(name="lv-storage", mount_path="/data")],
+    "env": [EnvVar(name="ALLOW_EMPTY_PASSWORD", value="yes")],
+}
+
+# Volumes that the pod will use
+volume = Volume(
+    name="lv-storage",
+    persistent_volume_claim=PersistentVolumeClaimVolumeSource(claim_name="redis-pvc"),
+)
+
+spec = {
+    "replicas": 1,
+    "selector": LabelSelector(match_labels={"app": "redis-server"}),
+    "template": {
+        "metadata": {"labels": {"app": "redis-server", "name": "redis-server"}},
+        "spec": {
+            "containers": [container],
+            "volumes": [volume],
+        },
+    },
+}
+
+# Creating the deployment resource
+redis_deployment = Deployment(
+    "redis-deployment",
+    metadata=metadata,
+    spec=spec,
+    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace_obj_ckc, redis_pvc])
+)
+
+# Define the metadata for the Service
+metadata = ObjectMetaArgs(
+    annotations={
+        "field.cattle.io/description": "This redis service connects to the ckc redis DB"
+    },
+    name="redis-svc",
+    namespace=namespace_ckc
+)
+
+# Define the spec for the Service
+service_spec = ServiceSpecArgs(
+    ports=[
+        ServicePortArgs(
+            name="tcp",
+            port=6379,
+            protocol="TCP",
+            target_port=6379
+        )
+    ],
+    selector={
+        "app": "redis-server"
+    },
+    session_affinity="None",
+    type="ClusterIP"
+)
+
+# Create the Service using the metadata and spec defined above
+redis_service = Service(
+    "redis-service",
+    metadata=metadata,
+    spec=service_spec
+)
+
+# Export the name of the Service
+pulumi.export('service_name', redis_service.metadata['name'])
+
+# Export the name of the deployment
+pulumi.export('deployment_name', redis_deployment.metadata['name'])
+# Export the name of the PersistentVolumeClaim
+pulumi.export('persistent_volume_claim_name', redis_pvc.metadata.apply(lambda meta: meta.name))
