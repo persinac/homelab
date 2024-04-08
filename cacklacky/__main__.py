@@ -3,23 +3,30 @@ import base64
 from dotenv import load_dotenv
 import pulumi
 from pulumi_kubernetes import Provider as KUBE_Provider
-from pulumi_kubernetes.core.v1 import Namespace
-from pulumi_kubernetes.apps.v1 import Deployment, DeploymentSpecArgs
+from pulumi_kubernetes.core.v1 import Namespace, ResourceRequirementsArgs, VolumeArgs, \
+    PersistentVolumeClaimVolumeSourceArgs, VolumeMountArgs, EnvFromSourceArgs
+from pulumi_kubernetes.core.v1.outputs import Container
+from pulumi_kubernetes.apps.v1 import Deployment, DeploymentSpecArgs, StatefulSet
 from pulumi_kubernetes.core.v1 import (
+    ContainerPortArgs,
+    ConfigMapVolumeSourceArgs,
+    Pod,
     PodTemplateSpecArgs,
     PodSpecArgs,
+    ConfigMap,
     ContainerArgs,
     ProbeArgs,
-Service,
-ServiceSpecArgs,
-ServicePortArgs,
+    Service,
+    ServiceSpecArgs,
+    ServicePortArgs,
     HTTPGetActionArgs,
     PersistentVolumeClaim,
     PersistentVolumeClaimSpecArgs,
-    VolumeResourceRequirementsArgs
+    VolumeResourceRequirementsArgs,
+    PodSecurityContextArgs
 )
 from pulumi_kubernetes.core.v1.outputs import VolumeMount, EnvVar, Volume, PersistentVolumeClaimVolumeSource, \
-    ContainerPort
+    ContainerPort, ConfigMapVolumeSource
 from pulumi_kubernetes.meta.v1 import ObjectMetaArgs, LabelSelectorArgs
 from pulumi_cloudflare import (
     Provider,
@@ -30,6 +37,13 @@ from pulumi_cloudflare import (
     TunnelConfigConfigIngressRuleArgs,
 )
 from pulumi_kubernetes.meta.v1.outputs import LabelSelector
+from trino.properties_configmap import coordinator_config_map, worker_config_map
+from trino.properties_deployments import (
+    trino_volume_claim_tmp_data_metadata,
+    trino_volume_claim_tmp_data_spec_args
+)
+
+from pulumi_kubernetes.helm.v3 import Chart, ChartOpts, FetchOpts
 
 # load env vars
 load_dotenv()
@@ -81,6 +95,11 @@ api_badge_ingress_rule = TunnelConfigConfigIngressRuleArgs(
 discord_bot_ingress_rule = TunnelConfigConfigIngressRuleArgs(
     hostname=f"ckc-bot.{hostname}",
     service=f"http://cackalacky-discord-api.{namespace_ckc}:80"
+)
+
+redash_ingress_rule = TunnelConfigConfigIngressRuleArgs(
+    hostname=f"redash.{hostname}",
+    service=f"http://redash-svc.{namespace_ckc}:80"
 )
 
 prefix_host_specific_ingress_rule = TunnelConfigConfigIngressRuleArgs(
@@ -168,6 +187,19 @@ discord_bot_dns_record = Record(
     )
 )
 
+redash_dns_record = Record(
+    "redash-cackalacky-cname",
+    zone_id=cloudflare_zone_id,
+    name="redash",  # This is relative to the domain name associated with the zone. e.g. 'www.example.com'
+    type="CNAME",
+    value=tunnel.cname,
+    proxied=True,
+    opts=pulumi.ResourceOptions(
+        provider=cloudflare_provider,
+        depends_on=[tunnel]
+    )
+)
+
 """
 K8S Specific Setup
  - The following will setup pods, containers, etc in the k8s cluster
@@ -232,7 +264,11 @@ cloudflared_deployment = Deployment(
             ),
         ),
     ),
-    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace_obj_ckc])
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[namespace_obj_ckc],
+        ignore_changes=["*"]
+    )
 )
 
 """ Longhorn & Redis """
@@ -337,3 +373,144 @@ pulumi.export('service_name', redis_service.metadata['name'])
 pulumi.export('deployment_name', redis_deployment.metadata['name'])
 # Export the name of the PersistentVolumeClaim
 pulumi.export('persistent_volume_claim_name', redis_pvc.metadata.apply(lambda meta: meta.name))
+
+""" TRINO """
+trino_conf_coordinator_map = coordinator_config_map(namespace_ckc)
+trino_conf_worker_map = worker_config_map(namespace_ckc)
+
+trino_conf_coordinator = ConfigMap(
+    "trino-conf-coordinator",
+    metadata=ObjectMetaArgs(
+        name="trino-conf-coordinator",
+        namespace=namespace_ckc
+    ),
+    data=trino_conf_coordinator_map,
+    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace_obj_ckc])
+)
+
+trino_conf_worker = ConfigMap(
+    "trino-conf-worker",
+    metadata=ObjectMetaArgs(
+        name="trino-conf-worker",
+        namespace=namespace_ckc
+    ),
+    data=trino_conf_worker_map,
+    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace_obj_ckc])
+)
+
+trino_volume_claim_template = PersistentVolumeClaim(
+    "trino-volume-claim",
+    metadata=trino_volume_claim_tmp_data_metadata,
+    spec=trino_volume_claim_tmp_data_spec_args,
+    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace_obj_ckc])
+)
+
+trino_volume_tmp_data = Volume(
+    name="trino-tmp-data",
+    persistent_volume_claim=PersistentVolumeClaimVolumeSource(
+        claim_name="trino-tmp-data"
+    )
+)
+
+"""
+This works, but doesn't use any of the volumes I created...
+TODO -> get the volumes mounted:
+server.config.path => Defaults to "/etc/trino"
+ - This has all of the configs
+server.node.dataDir => Defaults to "/data/trino"
+
+https://trinodb.github.io/charts/charts/trino/
+"""
+trino_chart = Chart(
+    'trino',
+    config=ChartOpts(
+        namespace=namespace_ckc,
+        chart='trino',
+        version='0.19.0',
+        fetch_opts=FetchOpts(
+            repo='https://trinodb.github.io/charts',
+        ),
+        values={
+            'image': {
+                'tag': 443
+            },
+            'additionalCatalogs': {
+                "hive": f"""
+                    connector.name=hive
+                    hive.metastore.uri=thrift://cackalacky-hive.{namespace_ckc}:9083
+                    hive.s3.endpoint=s3.amazonaws.com
+                    hive.s3.aws-access-key={os.getenv("HIVE_S3_IAM_ACCESS_KEY")}
+                    hive.s3.aws-secret-key={os.getenv("HIVE_S3_IAM_SECRET_KEY")}
+                """
+            },
+            'coordinator': {
+                'resources': {
+                    'requests': {
+                        'cpu': '2',
+                        'memory': '8Gi',
+                    },
+                    'limits': {
+                        'cpu': '4',
+                        'memory': '8Gi',
+                    },
+                },
+                'additionalVolumes': [],
+                'additionalVolumeMounts': []
+            },
+            'worker': {
+                'replicas': 2,
+                'resources': {
+                    'requests': {
+                        'cpu': '2',
+                        'memory': '8Gi',
+                    },
+                    'limits': {
+                        'cpu': '4',
+                        'memory': '8Gi',
+                    },
+                },
+                'additionalVolumes': [
+                    # {
+                    #     "name": "trino-tmp-data",
+                    #     "persistentVolumeClaim": {"claimName": "trino-data"}
+                    # }
+                    # """
+                    # - name: trino-tmp-data
+                    #   persistentVolumeClaim:
+                    #     claimName: trino-data
+                    # """
+                ],
+                'additionalVolumeMounts': [
+                    # {
+                    #     "name": "trino-tmp-data",
+                    #     "mountPath": "/tmp"
+                    # }
+                    # """
+                    # - name: trino-tmp-data
+                    #   mountPath: /tmp
+                    # """
+                ]
+            }
+        }
+    )
+)
+
+"""
+superset
+"""
+superset_chart = Chart(
+    'superset',
+    config=ChartOpts(
+        namespace=namespace_ckc,
+        chart='superset',
+        version='0.12.7',
+        fetch_opts=FetchOpts(
+            repo='https://apache.github.io/superset',
+        ),
+        values={
+            "configOverrides": {
+                "secret": "SECRET_KEY = 'asdflqergu3458248935algbgasdf1324t354gf'"
+            }
+        }
+    )
+)
