@@ -4,4 +4,4 @@ venv/
 .env
 formatted_yamls/*.yaml
 
-Pulumi.dev.yaml
+*.dev.yaml
