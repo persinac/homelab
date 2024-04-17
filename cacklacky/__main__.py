@@ -2,10 +2,10 @@ import os
 import base64
 from dotenv import load_dotenv
 import pulumi
-from pulumi_kubernetes import Provider as KUBE_Provider
+from pulumi_kubernetes import Provider as KUBE_Provider, apiextensions, certificates
 from pulumi_kubernetes.core.v1 import Namespace, ResourceRequirementsArgs, VolumeArgs, \
     PersistentVolumeClaimVolumeSourceArgs, VolumeMountArgs, EnvFromSourceArgs
-from pulumi_kubernetes.core.v1.outputs import Container
+from pulumi_kubernetes.core.v1.outputs import Container, Secret
 from pulumi_kubernetes.apps.v1 import Deployment, DeploymentSpecArgs, StatefulSet
 from pulumi_kubernetes.core.v1 import (
     ContainerPortArgs,
@@ -499,8 +499,71 @@ superset_chart = Chart(
 )
 
 """ TODO -> MetalLB helm deploy """
-""" TODO -> MetalLB custom resources: ip pool & L2 advertisements """
+# helm repo add metallb https://metallb.github.io/metallb
+# helm repo refresh
+metallb_version = "0.14.4"
+metallb_namespace_str = "metallb-system"
 
+namespace_metal_lb = Namespace(
+    "metallb-namespace",
+    metadata=ObjectMetaArgs(
+        name=metallb_namespace_str,
+    ),
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[namespace_obj_ckc]
+    )
+)
+
+metal_lb_release = Chart(
+    "metal-lb-release",
+    config=ChartOpts(
+        chart="metallb",
+        version="v1.6.3",
+        fetch_opts=FetchOpts(
+            repo='https://metallb.github.io/metallb',
+        ),
+        namespace=namespace_metal_lb.metadata["name"]
+    ),
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[namespace_metal_lb]
+    )
+)
+
+
+""" TODO -> MetalLB custom resources: ip pool & L2 advertisements """
+ip_range = "192.168.4.100-192.168.4.110"
+ip_address_pool = apiextensions.CustomResource(
+    "first-pool",
+    api_version="metallb.io/v1beta1",
+    kind="IPAddressPool",
+    metadata={
+        "name": "first-pool",
+        "namespace": namespace_metal_lb.metadata["name"]
+    },
+    spec={
+        "addresses": [ip_range]
+    },
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[metal_lb_release]
+    )
+)
+
+l2_advertisement = apiextensions.CustomResource(
+    "example-l2advertisement",
+    api_version="metallb.io/v1beta1",
+    kind="L2Advertisement",
+    metadata={
+        "name": "example",
+        "namespace": namespace_metal_lb.metadata["name"]
+    },
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[metal_lb_release]
+    )
+)
 
 """ NGinx Config Map """
 nginx_config_data = {
@@ -632,9 +695,152 @@ nginx_deployment = Deployment(
 
 
 """ TODO -> Service that points to badge api with MetalLB annotation """
+nginx_metallb_ckc_badge_api_service = Service(
+    "nginx",
+    metadata={
+        "name": "nginx-badge",
+        "annotations": {
+            "metallb.universe.tf/loadBalancerIPs": "192.168.4.105"
+        },
+    },
+    spec={
+        "type": "LoadBalancer",
+        "ports": [{
+            "port": 80,
+            "targetPort": 80,
+        }],
+        "selector": {
+            "app": "nginx",
+        },
+    },
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[
+            nginx_deployment,
+            l2_advertisement,
+            ip_address_pool
+        ]
+    )
+)
 
 """ CERTS """
+# I did the one click install in Rancher UI for cert manager and I regret it.
 # install cert manager helm, installCRDs=true
+# Here's the helm chart way...
+"""
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+"""
+cert_manager_version = "1.6.3"
+cert_manager_namespace_str = "cert-manager"
+
+namespace_cert_manager = Namespace(
+    "cert-manager-namespace",
+    metadata=ObjectMetaArgs(
+        name=cert_manager_namespace_str,
+    ),
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[namespace_obj_ckc],
+        additional_secret_outputs=["stringData"]
+    )
+)
+
+# Deploy cert-manager using the Helm chart
+cert_manager_release = Chart(
+    "cert-manager-release",
+    config=ChartOpts(
+        chart="cert-manager",
+        version="v1.6.3",
+        fetch_opts=FetchOpts(
+            repo='https://charts.jetstack.io',
+        ),
+        namespace=namespace_cert_manager.metadata["name"],
+        values={"installCRDs": True},
+    ),
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[namespace_cert_manager]
+    )
+)
+
+test_secret = Secret(
+    "cf-cert-manager-secret",
+    api_version="v1",
+    kind="Secret",
+    metadata={
+        "name": "cf-global-api-key",
+        "namespace": namespace_cert_manager.metadata["name"]
+    },
+    type="Opaque",
+    string_data={
+        "api-key": os.getenv("CF_GLOBAL_API_KEY"),
+    },
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[cert_manager_release]
+    )
+)
+
+letsencrypt_prod_cluster_issuer = apiextensions.CustomResource(
+    "letsencrypt-prod-clusterissuer",
+    api_version="cert-manager.io/v1",
+    kind="ClusterIssuer",
+    metadata={
+        "name": "letsencrypt-prod",
+        "namespace": namespace_cert_manager.metadata["name"]
+    },
+    spec={
+        "acme": {
+            "server": "https://acme-v02.api.letsencrypt.org/directory",
+            "email": "alex.persinger@augmented.ninja",
+            "privateKeySecretRef": {
+                "name": "letsencrypt-prod"
+            },
+            "solvers": [{
+                "dns01": {
+                    "cloudflare": {
+                        "email": "apfbacc@gmail.com",
+                        "apiKeySecretRef": {
+                            "name": test_secret.metadata['name'],
+                            "key": "api-key"
+                        }
+                    }
+                }
+            }]
+        }
+    },
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[cert_manager_release, test_secret]
+    )
+)
+
+# Create a cert-manager.io/v1 Certificate
+certificate = certificates.v1.Certificate(
+    "ckc-badge-cert",
+    metadata=ObjectMetaArgs(
+        name="ckc-badge-cert",
+        namespace=namespace_cert_manager.metadata["name"],
+    ),
+    spec=certificates.v1.CertificateSpecArgs(
+        secret_name="ckc-badge-cert-secret",
+        issuer_ref=certificates.v1.CertificateSpecIssuerRefArgs(
+            name="letsencrypt-prod",
+            kind="ClusterIssuer",
+        ),
+        dns_names=[
+            "*.cackalacky.ninja",
+            "cackalacky.ninja",
+        ],
+    )
+)
+
+
+pulumi.export('secret_name', test_secret.metadata['name'])
+pulumi.export('cluster_issuer_name', letsencrypt_prod_cluster_issuer.metadata['name'])
+pulumi.export('certificate_name', certificate.metadata.apply(lambda m: m.name))
+
 
 """
 # DNS Validation - WORKS
