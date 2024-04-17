@@ -23,7 +23,8 @@ from pulumi_kubernetes.core.v1 import (
     PersistentVolumeClaim,
     PersistentVolumeClaimSpecArgs,
     VolumeResourceRequirementsArgs,
-    PodSecurityContextArgs
+    PodSecurityContextArgs,
+    SecretVolumeSourceArgs
 )
 from pulumi_kubernetes.core.v1.outputs import VolumeMount, EnvVar, Volume, PersistentVolumeClaimVolumeSource, \
     ContainerPort, ConfigMapVolumeSource
@@ -95,11 +96,6 @@ api_badge_ingress_rule = TunnelConfigConfigIngressRuleArgs(
 discord_bot_ingress_rule = TunnelConfigConfigIngressRuleArgs(
     hostname=f"ckc-bot.{hostname}",
     service=f"http://cackalacky-discord-api.{namespace_ckc}:80"
-)
-
-redash_ingress_rule = TunnelConfigConfigIngressRuleArgs(
-    hostname=f"redash.{hostname}",
-    service=f"http://redash-svc.{namespace_ckc}:80"
 )
 
 prefix_host_specific_ingress_rule = TunnelConfigConfigIngressRuleArgs(
@@ -184,19 +180,6 @@ discord_bot_dns_record = Record(
         provider=cloudflare_provider,
         depends_on=[tunnel],
         ignore_changes=["*"]
-    )
-)
-
-redash_dns_record = Record(
-    "redash-cackalacky-cname",
-    zone_id=cloudflare_zone_id,
-    name="redash",  # This is relative to the domain name associated with the zone. e.g. 'www.example.com'
-    type="CNAME",
-    value=tunnel.cname,
-    proxied=True,
-    opts=pulumi.ResourceOptions(
-        provider=cloudflare_provider,
-        depends_on=[tunnel]
     )
 )
 
@@ -514,3 +497,187 @@ superset_chart = Chart(
         }
     )
 )
+
+""" TODO -> MetalLB helm deploy """
+""" TODO -> MetalLB custom resources: ip pool & L2 advertisements """
+
+
+""" NGinx Config Map """
+nginx_config_data = {
+    "default.conf": """\
+    server {
+        listen 80;
+        server_name cackalacky.ninja www.cackalacky.ninja;
+    
+        # Redirect all traffic to HTTPS
+        return 301 https://$host$request_uri;
+    }
+    server {
+        listen 443 ssl;
+        server_name cackalacky.ninja;
+        
+        resolver 10.43.0.10 valid=10s; # core dns service ip
+    
+        ssl_certificate /etc/nginx/certs/tls.crt;
+        ssl_certificate_key /etc/nginx/certs/tls.key;
+    
+        location / {
+            set $service_url http://cackalacky-badge-api-service.cackalacky.svc.cluster.local;
+            proxy_pass $service_url;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    """,
+    "nginx.conf": """\
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        include /etc/nginx/conf.d/*.conf;
+    }"""
+}
+
+nginx_config = ConfigMap(
+    "nginx-badge-config",
+    metadata=ObjectMetaArgs(
+        name="nginx-badge-config",
+        namespace=namespace_ckc,
+        annotations={
+            "field.cattle.io/description": "config stuffsssss"
+        }
+    ),
+    data=nginx_config_data,
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[namespace_obj_ckc]
+    )
+)
+
+# Export the name of the ConfigMap
+pulumi.export("configmap_name", nginx_config.metadata.name)
+
+""" nginx image deploy to pod """
+nginx_deployment = Deployment(
+    "nginx-deployment",
+    metadata=ObjectMetaArgs(
+      namespace=namespace_ckc,
+      name="nginx"
+    ),
+    spec=DeploymentSpecArgs(
+        replicas=1,
+        selector=LabelSelectorArgs(
+            match_labels={"app": "nginx"}
+        ),
+        template=PodTemplateSpecArgs(
+            metadata=ObjectMetaArgs(
+                labels={"app": "nginx"}
+            ),
+            spec=PodSpecArgs(
+                containers=[
+                    ContainerArgs(
+                        name="nginx",
+                        image="nginx:1.19.0",
+                        ports=[
+                            ContainerPortArgs(container_port=80),
+                            ContainerPortArgs(container_port=443)
+                        ],
+                        volume_mounts=[
+                            VolumeMountArgs(
+                                name="config-volume",
+                                mount_path="/etc/nginx/nginx.conf",
+                                sub_path="nginx.conf",
+                            ),
+                            VolumeMountArgs(
+                                name="config-volume",
+                                mount_path="/etc/nginx/conf.d/default.conf",
+                                sub_path="default.conf",
+                            ),
+                            VolumeMountArgs(
+                                name="cert-volume",
+                                mount_path="/etc/nginx/certs",
+                                read_only=True,
+                            )
+                        ]
+                    )
+                ],
+                volumes=[
+                    VolumeArgs(
+                        name="config-volume",
+                        config_map=ConfigMapVolumeSourceArgs(
+                            name=nginx_config.metadata.name,
+                        ),
+                    ),
+                    VolumeArgs(
+                        name="cert-volume",
+                        secret=SecretVolumeSourceArgs(
+                            secret_name="ckc-badge-cert-secret-clone",
+                        ),
+                    )
+                ],
+            )
+        )
+    ),
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[namespace_obj_ckc]
+    )
+)
+
+
+""" TODO -> Service that points to badge api with MetalLB annotation """
+
+""" CERTS """
+# install cert manager helm, installCRDs=true
+
+"""
+# DNS Validation - WORKS
+apiVersion: v1
+kind: Secret
+metadata:
+  name: testsecret
+type: Opaque
+stringData:
+  api-key: <cf global api key>
+
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  namespace: default
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: alex.persinger@augmented.ninja
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - dns01:
+        cloudflare:
+          email: apfbacc@gmail.com
+          apiKeySecretRef:
+            name: testsecret
+            key: api-key
+
+  
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ckc-badge-cert
+  namespace: default
+spec:
+  secretName: ckc-badge-cert-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - '*.cackalacky.ninja'
+  - cackalacky.ninja
+"""
